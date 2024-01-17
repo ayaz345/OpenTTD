@@ -42,7 +42,7 @@ def read_language_file(filename, strings_found, errors):
     last_tiny_string = ""
 
     with open(filename) as fp:
-        for line in fp.readlines():
+        for line in fp:
             if not line.strip():
                 if skip == SkipType.EXPECT_NEWLINE:
                     skip = SkipType.NONE
@@ -80,11 +80,7 @@ def read_language_file(filename, strings_found, errors):
 
                     length = line.split(" ")[1].strip()
 
-                    if length.isnumeric():
-                        length = int(length)
-                    else:
-                        length = LENGTH_NAME_LOOKUP[length]
-
+                    length = int(length) if length.isnumeric() else LENGTH_NAME_LOOKUP[length]
                     skip = SkipType.LENGTH
                 elif line.startswith("###external "):
                     # "###external <count>"
@@ -141,8 +137,8 @@ def read_language_file(filename, strings_found, errors):
 
                 # Find the common prefix of these strings
                 for i in range(len(common_prefix)):
-                    if common_prefix[0 : i + 1] != name[0 : i + 1]:
-                        common_prefix = common_prefix[0:i]
+                    if common_prefix[: i + 1] != name[: i + 1]:
+                        common_prefix = common_prefix[:i]
                         break
 
                 if length == 0:
@@ -201,14 +197,16 @@ def main():
     strings_defined = sorted(strings_defined)
     strings_found = sorted(list(strings_found))
 
-    for string in strings_found:
-        if string not in strings_defined:
-            errors.append(f"ERROR: {string} found but never defined.")
-
-    for string in strings_defined:
-        if string not in strings_found:
-            errors.append(f"ERROR: {string} is (possibly) no longer needed.")
-
+    errors.extend(
+        f"ERROR: {string} found but never defined."
+        for string in strings_found
+        if string not in strings_defined
+    )
+    errors.extend(
+        f"ERROR: {string} is (possibly) no longer needed."
+        for string in strings_defined
+        if string not in strings_found
+    )
     if errors:
         print("\n".join(errors))
         sys.exit(1)
